@@ -1,4 +1,9 @@
-﻿namespace CryptoRates.UI.API.Extensions;
+﻿using CryptoRates.UI.API.ExternalServices.Contracts;
+using CryptoRates.UI.API.ExternalServices;
+using CryptoRates.UI.API.Services.Contracts;
+using CryptoRates.UI.API.Services;
+
+namespace CryptoRates.UI.API.Extensions;
 
 public static class ServiceExtensions
 {
@@ -8,8 +13,12 @@ public static class ServiceExtensions
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen();
 
-        services.AddHttpClient(); 
+        // You can use Redis or SQL Server for distributed caching
+        services.AddDistributedMemoryCache();
 
+        services.AddHttpClient();
+        services.AddScoped<ICoinMarketCapService, CoinMarketCapService>();
+        services.AddScoped<ISymbolsRepository, SymbolsRepository>();
         return services;
     }
 }
