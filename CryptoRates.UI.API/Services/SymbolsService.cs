@@ -6,14 +6,14 @@ using System.Text.Json;
 
 namespace CryptoRates.UI.API.Services;
 
-public class SymbolsRepository : ISymbolsRepository
+public class SymbolsService : ISymbolsService
 {
     private readonly IDistributedCache _cache;
     private readonly ICoinMarketCapService _coinMarketCapService;
     private readonly string _cacheKey;
     private readonly TimeSpan _cacheExpiration;
 
-    public SymbolsRepository(IDistributedCache cache, ICoinMarketCapService coinMarketCapService, IConfiguration configuration)
+    public SymbolsService(IDistributedCache cache, ICoinMarketCapService coinMarketCapService, IConfiguration configuration)
     {
         _cache = cache;
         _coinMarketCapService = coinMarketCapService;

@@ -6,7 +6,7 @@ public static class SymbolsEndpoints
 {
     public static WebApplication AddSymbolsEndpoints(this WebApplication app)
     {
-        app.MapGet("/symbols", async (ISymbolsRepository service) =>
+        app.MapGet("/symbols", async (ISymbolsService service) =>
         {
             var symbols = await service.GetSymbolsAsync();
             return Results.Ok(symbols);

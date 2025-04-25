@@ -18,7 +18,7 @@ public static class ServiceExtensions
 
         services.AddHttpClient();
         services.AddScoped<ICoinMarketCapService, CoinMarketCapService>();
-        services.AddScoped<ISymbolsRepository, SymbolsRepository>();
+        services.AddScoped<ISymbolsService, SymbolsService>();
         return services;
     }
 }

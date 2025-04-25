@@ -2,7 +2,7 @@
 
 namespace CryptoRates.UI.API.Services.Contracts;
 
-public interface ISymbolsRepository
+public interface ISymbolsService
 {
     Task<List<SymbolDto>> GetSymbolsAsync();
     Task<bool> IsSymbolExistAsync(string symbol);
