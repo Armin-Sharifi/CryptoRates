@@ -5,6 +5,8 @@ VisualStudioVersion = 17.13.35931.197
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CryptoRates.UI.API", "CryptoRates.UI.API\CryptoRates.UI.API.csproj", "{29E4A6BF-ECAA-4A50-B5D4-C3D1BB65B8E4}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CryptoRates.Tests", "CryptoRates.Tests\CryptoRates.Tests.csproj", "{82F33579-491D-4C86-8E95-79B886EC3C4D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{29E4A6BF-ECAA-4A50-B5D4-C3D1BB65B8E4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{29E4A6BF-ECAA-4A50-B5D4-C3D1BB65B8E4}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{29E4A6BF-ECAA-4A50-B5D4-C3D1BB65B8E4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{82F33579-491D-4C86-8E95-79B886EC3C4D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{82F33579-491D-4C86-8E95-79B886EC3C4D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{82F33579-491D-4C86-8E95-79B886EC3C4D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{82F33579-491D-4C86-8E95-79B886EC3C4D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
