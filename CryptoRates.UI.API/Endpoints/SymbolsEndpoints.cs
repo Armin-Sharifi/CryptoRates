@@ -1,6 +1,5 @@
-﻿using CryptoRates.UI.API.ExternalServices.Contracts;
+﻿using CryptoRates.UI.API.Extensions;
 using CryptoRates.UI.API.Services.Contracts;
-using Microsoft.AspNetCore.Mvc;
 
 namespace CryptoRates.UI.API.Endpoints;
 
@@ -11,7 +10,7 @@ public static class SymbolsEndpoints
         app.MapGet("api/symbols", async (ISymbolsService service) =>
         {
             var symbols = await service.GetSymbolsAsync();
-            return Results.Ok(symbols);
+            return symbols.ToApiResult();
         }).WithTags("Symbols");
 
         return app;

@@ -1,7 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using CryptoRates.UI.API.Extensions;
 using CryptoRates.UI.API.Services.Contracts;
-using ErrorOr;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CryptoRates.UI.API.Endpoints;
@@ -15,7 +14,7 @@ public static class QuotesEndpoints
             var symbolList = symbols.Split(',').ToList();
 
             var results = await service.GetPricesAsync(symbolList);
-            return Results.Ok(results.Value);
+            return results.ToApiResult();
         }).WithTags("Quotes"); ;
 
         return app;

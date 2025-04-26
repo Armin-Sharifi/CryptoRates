@@ -1,5 +1,4 @@
-﻿using System;
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Web;
 using CryptoRates.UI.API.DataTransferObjects;
 using CryptoRates.UI.API.ExternalServices.Contracts;
@@ -19,13 +18,14 @@ public class CoinMarketCapService : ICoinMarketCapService
 
     public CoinMarketCapService(
         IHttpClientFactory httpClientFactory,
-        IConfiguration configuration, ILogger<CoinMarketCapService> logger)
+        IConfiguration configuration,
+        ILogger<CoinMarketCapService> logger)
     {
         _httpClientFactory = httpClientFactory;
         _logger = logger;
 
         _apiKey = configuration["CoinMarketCap:ApiKey"]
-                  ?? throw new InvalidOperationException("CoinMarketCap API key is not configured");
+            ?? throw new InvalidOperationException("CoinMarketCap API key is not configured");
 
         _baseUrl = configuration["CoinMarketCap:BaseUrl"]
             ?? "https://pro-api.coinmarketcap.com";
@@ -37,27 +37,58 @@ public class CoinMarketCapService : ICoinMarketCapService
                                   ?? "/v2/cryptocurrency/quotes/latest";
 
         _baseQuotesCurrency = configuration["CoinMarketCap:BaseQuotesCurrency"] ?? "EUR";
+
+        _logger.LogInformation("CoinMarketCapService initialized with base URL: {BaseUrl}", _baseUrl);
     }
 
     public async Task<ErrorOr<List<CryptoSymbol>>> FetchSymbolsAsync()
     {
-        var client = _httpClientFactory.CreateClient();
-        client.DefaultRequestHeaders.Add("X-CMC_PRO_API_KEY", _apiKey);
+        _logger.LogInformation("Fetching crypto symbols from CoinMarketCap");
 
-        var url = $"{_baseUrl.TrimEnd('/')}{_latestListingsEndpoint}";
-        var response = await client.GetAsync(url);
-
-        if (!response.IsSuccessStatusCode)
+        try
         {
-            throw new HttpRequestException(
-                $"Failed to fetch symbols from CoinMarketCap. Status code: {response.StatusCode}");
-        }
+            var client = _httpClientFactory.CreateClient();
+            client.DefaultRequestHeaders.Add("X-CMC_PRO_API_KEY", _apiKey);
 
-        var content = await response.Content.ReadAsStringAsync();
-        return ParseSymbolsFromResponse(content);
+            var url = $"{_baseUrl.TrimEnd('/')}{_latestListingsEndpoint}";
+            _logger.LogDebug("Sending request to: {Url}", url);
+
+            var response = await client.GetAsync(url);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                _logger.LogError("Failed to fetch symbols from CoinMarketCap. Status code: {StatusCode}, Response: {Response}",
+                    response.StatusCode, errorContent);
+
+                return Error.Failure("CoinMarketCap.FetchSymbols.RequestFailed",
+                    $"API request failed with status code {response.StatusCode}");
+            }
+
+            var content = await response.Content.ReadAsStringAsync();
+            var symbols = ParseSymbolsFromResponse(content);
+
+            _logger.LogInformation("Successfully fetched {Count} crypto symbols", symbols.Count);
+            return symbols;
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "HTTP request exception while fetching symbols");
+            return Error.Failure("CoinMarketCap.FetchSymbols.RequestException", ex.Message);
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogError(ex, "JSON parsing exception while processing symbols response");
+            return Error.Failure("CoinMarketCap.FetchSymbols.JsonParsingError", ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error while fetching symbols");
+            return Error.Unexpected("CoinMarketCap.FetchSymbols.UnexpectedError", ex.Message);
+        }
     }
 
-    private static List<CryptoSymbol> ParseSymbolsFromResponse(string jsonResponse)
+    private List<CryptoSymbol> ParseSymbolsFromResponse(string jsonResponse)
     {
         try
         {
@@ -73,54 +104,142 @@ public class CoinMarketCapService : ICoinMarketCapService
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Failed to parse CoinMarketCap API response");
             throw new JsonException("Failed to parse CoinMarketCap API response", ex);
         }
     }
 
     public async Task<ErrorOr<List<QuoteDto>>> GetLatestQuotesAsync(List<string> symbols)
     {
-        var client = _httpClientFactory.CreateClient();
-        client.DefaultRequestHeaders.Add("X-CMC_PRO_API_KEY", _apiKey);
-
-        var url = new UriBuilder($"{_baseUrl.TrimEnd('/')}{_latestQuotesEndpoint}");
-        var queryString = HttpUtility.ParseQueryString(string.Empty);
-        queryString["symbol"] = string.Join(",", symbols);
-        queryString["convert"] = _baseQuotesCurrency;
-        url.Query = queryString.ToString();
-
-        var response = await client.GetAsync(url.ToString());
-        if (!response.IsSuccessStatusCode)
+        if (symbols is null || !symbols.Any())
         {
-            throw new HttpRequestException(
-                $"Failed to fetch latest quotes from CoinMarketCap. Status code: {response.StatusCode}");
+            _logger.LogWarning("GetLatestQuotesAsync called with empty or null symbols list");
+            return Error.Validation("CoinMarketCap.GetQuotes.EmptySymbols", "No symbols provided for quotes request");
         }
-        var content = await response.Content.ReadAsStringAsync();
-        return ParseQuotesFromResponse(content, symbols);
+
+        _logger.LogInformation("Fetching latest quotes for {Count} symbols: {Symbols}",
+            symbols.Count, string.Join(", ", symbols));
+
+        try
+        {
+            var client = _httpClientFactory.CreateClient();
+            client.DefaultRequestHeaders.Add("X-CMC_PRO_API_KEY", _apiKey);
+
+            var url = new UriBuilder($"{_baseUrl.TrimEnd('/')}{_latestQuotesEndpoint}");
+            var queryString = HttpUtility.ParseQueryString(string.Empty);
+            queryString["symbol"] = string.Join(",", symbols);
+            queryString["convert"] = _baseQuotesCurrency;
+            url.Query = queryString.ToString();
+
+            _logger.LogDebug("Sending quotes request to: {Url}", url.ToString());
+
+            var response = await client.GetAsync(url.ToString());
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                _logger.LogError("Failed to fetch latest quotes. Status code: {StatusCode}, Response: {Response}",
+                    response.StatusCode, errorContent);
+
+                return Error.Failure("CoinMarketCap.GetQuotes.RequestFailed",
+                    $"API request failed with status code {response.StatusCode}");
+            }
+
+            var content = await response.Content.ReadAsStringAsync();
+            var quotes = ParseQuotesFromResponse(content, symbols);
+
+            if (quotes.Count == 0)
+            {
+                _logger.LogWarning("No valid quotes returned for symbols: {Symbols}", string.Join(", ", symbols));
+                return Error.NotFound("CoinMarketCap.GetQuotes.NoQuotesFound", "No valid quotes were found for the provided symbols");
+            }
+
+            _logger.LogInformation("Successfully fetched {Count} quotes", quotes.Count);
+            return quotes;
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "HTTP request exception while fetching quotes");
+            return Error.Failure("CoinMarketCap.GetQuotes.RequestException", ex.Message);
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogError(ex, "JSON parsing exception while processing quotes response");
+            return Error.Failure("CoinMarketCap.GetQuotes.JsonParsingError", ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error while fetching quotes");
+            return Error.Unexpected("CoinMarketCap.GetQuotes.UnexpectedError", ex.Message);
+        }
     }
 
     private List<QuoteDto> ParseQuotesFromResponse(string jsonResponse, List<string> symbols)
     {
         var results = new List<QuoteDto>();
 
-        using var document = JsonDocument.Parse(jsonResponse);
-
-        var dataElement = document.RootElement.GetProperty("data");
-
-        foreach (var symbol in symbols)
+        try
         {
-            if (!dataElement.TryGetProperty(symbol, out JsonElement symbolData)) continue;
-            var firstItem = symbolData.EnumerateArray().FirstOrDefault();
+            using var document = JsonDocument.Parse(jsonResponse);
 
-            if (firstItem.ValueKind == JsonValueKind.Undefined) continue;
+            if (!document.RootElement.TryGetProperty("data", out JsonElement dataElement))
+            {
+                _logger.LogWarning("Missing 'data' property in quotes response");
+                return results;
+            }
 
-            var price = firstItem.GetProperty("quote")
-                .GetProperty(_baseQuotesCurrency)
-                .GetProperty("price")
-                .GetDecimal();
+            foreach (var symbol in symbols)
+            {
+                try
+                {
+                    if (!dataElement.TryGetProperty(symbol, out JsonElement symbolData))
+                    {
+                        _logger.LogDebug("Symbol {Symbol} not found in response data", symbol);
+                        continue;
+                    }
 
-            results.Add(new QuoteDto(symbol, price));
+                    var firstItem = symbolData.EnumerateArray().FirstOrDefault();
+
+                    if (firstItem.ValueKind == JsonValueKind.Undefined)
+                    {
+                        _logger.LogDebug("No data available for symbol {Symbol}", symbol);
+                        continue;
+                    }
+
+                    if (!firstItem.TryGetProperty("quote", out JsonElement quoteElement))
+                    {
+                        _logger.LogDebug("Quote property missing for symbol {Symbol}", symbol);
+                        continue;
+                    }
+
+                    if (!quoteElement.TryGetProperty(_baseQuotesCurrency, out JsonElement currencyElement))
+                    {
+                        _logger.LogDebug("Currency {Currency} not found in quote for symbol {Symbol}",
+                            _baseQuotesCurrency, symbol);
+                        continue;
+                    }
+
+                    if (!currencyElement.TryGetProperty("price", out JsonElement priceElement))
+                    {
+                        _logger.LogDebug("Price property missing in quote for symbol {Symbol}", symbol);
+                        continue;
+                    }
+
+                    var price = priceElement.GetDecimal();
+                    results.Add(new QuoteDto(symbol, price));
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Error processing quote for symbol {Symbol}", symbol);
+                    // Continue processing other symbols even if one fails
+                }
+            }
+
+            return results;
         }
-
-        return results;
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to parse quotes response");
+            throw new JsonException("Failed to parse CoinMarketCap quotes response", ex);
+        }
     }
 }
