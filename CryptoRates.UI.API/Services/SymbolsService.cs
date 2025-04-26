@@ -3,6 +3,7 @@ using CryptoRates.UI.API.ExternalServices.Contracts;
 using CryptoRates.UI.API.Services.Contracts;
 using Microsoft.Extensions.Caching.Distributed;
 using System.Text.Json;
+using ErrorOr;
 
 namespace CryptoRates.UI.API.Services;
 
@@ -17,30 +18,52 @@ public class SymbolsService : ISymbolsService
     {
         _cache = cache;
         _coinMarketCapService = coinMarketCapService;
-        _cacheKey = configuration["Cache:CryptoSymbolsKey"] ?? "crypto-symbols";
+        _cacheKey = configuration["CacheSymbols:Key"] ?? "crypto-symbols";
         _cacheExpiration = TimeSpan.FromMinutes(
-            configuration.GetValue<double>("Cache:ExpirationMinutes", 1440)); // Default 24 hours
+            configuration.GetValue<double>("CacheSymbols:ExpirationMinutes", 1440)); // Default 24 hours
     }
 
-    public async Task<List<SymbolDto>> GetSymbolsAsync()
+    public async Task<ErrorOr<List<CryptoSymbol>>> GetSymbolsAsync()
     {
         var cachedSymbols = await TryGetFromCacheAsync();
         if (cachedSymbols is not null && cachedSymbols.Count > 0)
             return cachedSymbols;
 
         var symbols = await _coinMarketCapService.FetchSymbolsAsync();
-        await SetToCacheAsync(symbols);
+
+        if (symbols.IsError)
+        {
+            return symbols.Errors;
+        }
+
+        await SetToCacheAsync(symbols.Value);
         return symbols;
     }
 
-    public async Task<List<string>> ValidateSymbolsAsync(List<string> symbols)
+    public async Task<ErrorOr<List<string>>> ValidateSymbolsAsync(List<string> symbols)
     {
         var symbolsDto = await GetSymbolsAsync();
 
-        return symbols.Where(symbol => symbolsDto.Any(s => s.Symbol.Equals(symbol, StringComparison.OrdinalIgnoreCase))).ToList();
+        //var validatedSymbols = new List<string>();
+
+        if (symbolsDto.IsError)
+        {
+            return symbolsDto.Errors;
+        }
+
+        //foreach (var symbol in symbols)
+        //{
+        //    var validatedSymbol = symbolsDto.Value.SingleOrDefault(x => x.Symbol == symbol);
+        //    if (validatedSymbol is not )
+        //    {
+        //        validatedSymbols.Add();
+        //    }
+        //}
+
+        return symbols.Where(symbol => symbolsDto.Value.Any(s => s.Symbol.Equals(symbol, StringComparison.OrdinalIgnoreCase))).ToList();
     }
 
-    private async Task SetToCacheAsync(List<SymbolDto> symbols)
+    private async Task SetToCacheAsync(List<CryptoSymbol> symbols)
     {
         var options = new DistributedCacheEntryOptions
         {
@@ -50,11 +73,11 @@ public class SymbolsService : ISymbolsService
         await _cache.SetStringAsync(_cacheKey, json, options);
     }
 
-    private async Task<List<SymbolDto>?> TryGetFromCacheAsync()
+    private async Task<List<CryptoSymbol>?> TryGetFromCacheAsync()
     {
         var symbolJson = await _cache.GetStringAsync(_cacheKey);
         return string.IsNullOrEmpty(symbolJson)
             ? null
-            : JsonSerializer.Deserialize<List<SymbolDto>>(symbolJson);
+            : JsonSerializer.Deserialize<List<CryptoSymbol>>(symbolJson);
     }
 }

@@ -8,6 +8,7 @@ builder.Services.AddApplicationServices();
 var app = builder.Build();
 
 app.AddSymbolsEndpoints();
+app.AddQuotesEndpoints();
 
 app.ConfigureMiddlewares();
 

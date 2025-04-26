@@ -19,6 +19,9 @@ public static class ServiceExtensions
         services.AddHttpClient();
         services.AddScoped<ICoinMarketCapService, CoinMarketCapService>();
         services.AddScoped<ISymbolsService, SymbolsService>();
+        services.AddScoped<IExchangeRatesService, ExchangeRatesService>();
+        services.AddScoped<IRateService, RateService>();
+        services.AddScoped<IQuoteService, QuoteService>();
         return services;
     }
 }

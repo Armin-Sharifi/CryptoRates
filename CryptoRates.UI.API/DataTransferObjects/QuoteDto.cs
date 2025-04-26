@@ -1,3 +1,3 @@
 ﻿namespace CryptoRates.UI.API.DataTransferObjects;
 
-public record SymbolDto(string Name, string Symbol);
+public record QuoteDto(string Symbol, decimal Price);
