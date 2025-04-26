@@ -33,15 +33,11 @@ public class SymbolsService : ISymbolsService
         return symbols;
     }
 
-    public async Task<bool> IsSymbolExistAsync(string symbol)
+    public async Task<List<string>> ValidateSymbolsAsync(List<string> symbols)
     {
-        if (string.IsNullOrWhiteSpace(symbol))
-        {
-            return false;
-        }
+        var symbolsDto = await GetSymbolsAsync();
 
-        var symbols = await GetSymbolsAsync();
-        return symbols.Any(s => s.Symbol.Equals(symbol, StringComparison.OrdinalIgnoreCase));
+        return symbols.Where(symbol => symbolsDto.Any(s => s.Symbol.Equals(symbol, StringComparison.OrdinalIgnoreCase))).ToList();
     }
 
     private async Task SetToCacheAsync(List<SymbolDto> symbols)
